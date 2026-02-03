@@ -5,7 +5,9 @@ const AdminPanel = () => {
     const [users, setUsers] = useState([]);
     const [newUser, setNewUser] = useState({ username: '', password: '', role: 'user', permissions: [] });
 
-    // Lista de permissões disponíveis no sistema
+    // Link base da sua API
+    const API_URL = 'https://api-forca-3um5.onrender.com/api/users';
+
     const availablePermissions = [
         { id: 'live', label: 'Monitor Ao Vivo' },
         { id: 'excel', label: 'Planilha' },
@@ -14,9 +16,13 @@ const AdminPanel = () => {
     ];
 
     const fetchUsers = async () => {
-        const res = await fetch('http://localhost:3001/api/users');
-        const json = await res.json();
-        setUsers(json);
+        try {
+            const res = await fetch(API_URL);
+            if (res.ok) {
+                const json = await res.json();
+                setUsers(json);
+            }
+        } catch (err) { console.error("Erro ao buscar usuários:", err); }
     };
 
     useEffect(() => { fetchUsers(); }, []);
@@ -24,19 +30,26 @@ const AdminPanel = () => {
     const handleAddUser = async () => {
         if (!newUser.username || !newUser.password) return alert('Preencha usuario e senha');
 
-        await fetch('http://localhost:3001/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newUser)
-        });
-        setNewUser({ username: '', password: '', role: 'user', permissions: [] });
-        fetchUsers();
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newUser)
+            });
+            if (res.ok) {
+                setNewUser({ username: '', password: '', role: 'user', permissions: [] });
+                fetchUsers();
+            }
+        } catch (err) { alert('Erro ao cadastrar usuário'); }
     };
 
     const handleDelete = async (id) => {
         if (window.confirm('Remover usuário?')) {
-            await fetch(`http://localhost:3001/api/users/${id}`, { method: 'DELETE' });
-            fetchUsers();
+            try {
+                // ATUALIZADO: Removido localhost e usado link oficial
+                await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                fetchUsers();
+            } catch (err) { alert('Erro ao deletar'); }
         }
     };
 
@@ -53,7 +66,6 @@ const AdminPanel = () => {
         <div className="admin-panel-container">
             <h2><FaShieldAlt /> Painel Administrativo</h2>
 
-            {/* FORMULÁRIO DE CADASTRO */}
             <div className="admin-form glass-panel">
                 <h3>Novo Usuário</h3>
                 <div className="form-row">
@@ -91,7 +103,6 @@ const AdminPanel = () => {
                 <button className="add-btn" onClick={handleAddUser}><FaUserPlus /> Cadastrar</button>
             </div>
 
-            {/* LISTA DE USUÁRIOS */}
             <div className="users-list glass-panel">
                 <table className="admin-table">
                     <thead>
@@ -110,7 +121,7 @@ const AdminPanel = () => {
                                     {u.role.toUpperCase()}
                                 </td>
                                 <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                    {u.permissions.join(', ')}
+                                    {Array.isArray(u.permissions) ? u.permissions.join(', ') : u.permissions}
                                 </td>
                                 <td>
                                     {u.username !== 'admin' && (

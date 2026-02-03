@@ -9,7 +9,8 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:3001/api/login', {
+            // ATUALIZADO: Incluído o caminho /api/login completo
+            const res = await fetch('https://api-forca-3um5.onrender.com/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -18,9 +19,9 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
             const data = await res.json();
 
             if (res.ok) {
-                onLoginSuccess(data); // Passa os dados do usuário para o App
+                onLoginSuccess(data);
             } else {
-                setError(data.error);
+                setError(data.error || 'Credenciais inválidas');
             }
         } catch (err) {
             setError('Erro de conexão com servidor');
