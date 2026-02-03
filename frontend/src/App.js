@@ -14,7 +14,8 @@ function DashboardComponent({ user, onLogout }) {
   const [loading, setLoading] = useState(false);
   const currencies = ['AUD', 'CAD', 'CHF', 'EUR', 'GBP', 'JPY', 'NZD', 'USD'];
 
-  const API_URL = "http://localhost:3001"; // Conexão Local
+  // Link oficial da sua API no Render
+  const API_URL = "https://api-forca-3um5.onrender.com";
 
   const canAccess = (perm) => user.role === 'admin' || user.permissions.includes(perm);
 
@@ -43,17 +44,30 @@ function DashboardComponent({ user, onLogout }) {
   };
 
   useEffect(() => {
+    // Execução imediata ao trocar de aba
     fetchLiveHead();
     if (viewMode !== 'terminal' && viewMode !== 'admin') fetchTable();
+
     const interval = setInterval(() => {
-      fetchLiveHead();
-      if (viewMode !== 'terminal' && viewMode !== 'admin') fetchTable();
-    }, 5000);
+      // LÓGICA DE DELAY DE 30 SEGUNDOS PARA PLANILHA E TERMINAL
+      if (viewMode === 'excel' || viewMode === 'terminal') {
+        console.log("⏳ Aguardando 30s para atualizar Planilha/Terminal...");
+        setTimeout(() => {
+          fetchLiveHead();
+          if (viewMode !== 'terminal') fetchTable();
+        }, 30000); // Aguarda 30 segundos
+      } else {
+        // Atualização normal (5s) para as outras abas
+        fetchLiveHead();
+        if (viewMode !== 'terminal' && viewMode !== 'admin') fetchTable();
+      }
+    }, 5000); // Ciclo de verificação a cada 5 segundos
+
     return () => clearInterval(interval);
     // eslint-disable-next-line
   }, [viewMode, historyPeriod]);
 
-  // Renderizadores
+  // Renderizadores (Mantidos originais)
   const renderTerminalBlock = (title, dataObj, scoreObj) => {
     if (!dataObj || Object.keys(dataObj).length === 0) return <div className="term-line">Aguardando dados...</div>;
     const sortedEntries = Object.entries(dataObj).sort(([, a], [, b]) => b - a);
@@ -95,8 +109,6 @@ function DashboardComponent({ user, onLogout }) {
 
   return (
     <div className={`dashboard-container ${viewMode === 'terminal' ? 'terminal-mode-bg' : ''}`}>
-
-      {/* --- CORREÇÃO AQUI: HEADER SEMPRE PADRÃO (GlassHeader) --- */}
       <header className="glass-header">
         <div className="logo-area">
           <div className={`status-dot ${marketData?.metadata?.last_update !== 'AGUARDANDO...' ? 'online' : ''}`}></div>
@@ -112,13 +124,11 @@ function DashboardComponent({ user, onLogout }) {
         </div>
       </header>
 
-      {/* --- CONTEÚDO --- */}
       {viewMode === 'admin' ? (
         <AdminPanel />
       ) : viewMode === 'terminal' ? (
         <div className="terminal-console-wrapper">
           <div className="terminal-header-line">========================================================</div>
-          {/* O horário e o estilo C:\SYSTEM ficam agora DENTRO da tela preta, não no cabeçalho */}
           <div className="term-line" style={{ marginBottom: 20, color: '#ccc', fontWeight: 'bold' }}>
             C:\SYSTEM\INSTITUTIONAL_TRACKER.EXE [UTC-5: {marketData?.metadata?.last_update || 'AGUARDANDO...'}]
           </div>
