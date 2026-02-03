@@ -6,7 +6,13 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// --- AJUSTE DE SEGURANÇA (CORS) PARA NUVEM ---
+app.use(cors({
+    origin: "https://forca-eight.vercel.app", // Permite apenas o seu site da Vercel
+    methods: ["GET", "POST", "DELETE"],
+    credentials: true
+}));
+
 app.use(express.json());
 
 // --- CONEXÃO COM O BANCO (NEON) ---
@@ -26,7 +32,6 @@ const EMPTY_DATA = {
 // --- INICIALIZAÇÃO DO BANCO ---
 const initDB = async () => {
     try {
-        // 1. Cria tabelas se não existirem
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -44,19 +49,16 @@ const initDB = async () => {
             );
         `);
 
-        // 2. Garante que o Admin existe com a senha #Carinho123
         const res = await pool.query("SELECT * FROM users WHERE username = $1", ['admin']);
         const defaultPerms = JSON.stringify(['live', 'excel', 'terminal', 'history']);
 
         if (res.rows.length === 0) {
-            // Se não existe, cria
             await pool.query(
                 "INSERT INTO users (username, password, role, permissions) VALUES ($1, $2, $3, $4)",
                 ['admin', '#Carinho123', 'admin', defaultPerms]
             );
             console.log("🔒 Usuário ADMIN criado com senha: #Carinho123");
         } else {
-            // Se já existe, ATUALIZA a senha
             await pool.query(
                 "UPDATE users SET password = $1 WHERE username = $2",
                 ['#Carinho123', 'admin']
@@ -72,9 +74,8 @@ const initDB = async () => {
 
 initDB();
 
-// --- ROTAS ---
+// --- ROTAS (LOGIN, USERS, HISTORY, LIVE) ---
 
-// Login
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -95,7 +96,6 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Listar Usuários
 app.get('/api/users', async (req, res) => {
     try {
         const { rows } = await pool.query("SELECT id, username, role, permissions FROM users");
@@ -104,7 +104,6 @@ app.get('/api/users', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Criar Usuário
 app.post('/api/users', async (req, res) => {
     const { username, password, role, permissions } = req.body;
     try {
@@ -116,7 +115,6 @@ app.post('/api/users', async (req, res) => {
     } catch (err) { res.status(400).json({ error: "Erro ao criar usuário." }); }
 });
 
-// Deletar Usuário
 app.delete('/api/users/:id', async (req, res) => {
     try {
         await pool.query("DELETE FROM users WHERE id = $1", [req.params.id]);
@@ -124,7 +122,6 @@ app.delete('/api/users/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Histórico
 app.get('/api/history', async (req, res) => {
     const { period } = req.query;
     let interval = period === 'month' ? "30 days" : "7 days";
@@ -138,7 +135,6 @@ app.get('/api/history', async (req, res) => {
         const historyData = rows.map(row => {
             try {
                 const parsed = JSON.parse(row.data_json);
-                // Injeta o last_update do metadata dentro do objeto principal se necessário
                 return { timestamp: row.timestamp, ...parsed };
             } catch { return null; }
         }).filter(i => i);
@@ -146,7 +142,6 @@ app.get('/api/history', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Live Data
 app.get('/api/live-data', async (req, res) => {
     try {
         const { rows } = await pool.query("SELECT data_json FROM market_history ORDER BY id DESC LIMIT 1");
