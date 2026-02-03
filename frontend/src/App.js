@@ -15,7 +15,7 @@ function DashboardComponent({ user, onLogout }) {
   const currencies = ['AUD', 'CAD', 'CHF', 'EUR', 'GBP', 'JPY', 'NZD', 'USD'];
 
   // Link oficial da sua API no Render
-  const API_URL = "https://api-forca-3um5.onrender.com";//
+  const API_URL = "https://api-forca-3um5.onrender.com"; // Versão Nuvem Final
 
   const canAccess = (perm) => user.role === 'admin' || user.permissions.includes(perm);
 
