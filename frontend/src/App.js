@@ -15,7 +15,7 @@ function DashboardComponent({ user, onLogout }) {
   const currencies = ['AUD', 'CAD', 'CHF', 'EUR', 'GBP', 'JPY', 'NZD', 'USD'];
 
   // Link oficial da sua API no Render
-  const API_URL = "https://api-forca-3um5.onrender.com"; // Versão Nuvem Final
+  const API_URL = "https://api-forca-3um5.onrender.com";
 
   const canAccess = (perm) => user.role === 'admin' || user.permissions.includes(perm);
 
@@ -26,7 +26,7 @@ function DashboardComponent({ user, onLogout }) {
         const json = await res.json();
         setMarketData(json);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Erro LiveHead:", err); }
   };
 
   const fetchTable = async () => {
@@ -39,35 +39,44 @@ function DashboardComponent({ user, onLogout }) {
         const json = await res.json();
         setTableData(json);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error("Erro Table:", err); }
     if (viewMode !== 'live') setLoading(false);
   };
 
   useEffect(() => {
-    // Execução imediata ao trocar de aba
+    // 1. Busca imediata ao carregar ou trocar de aba
     fetchLiveHead();
     if (viewMode !== 'terminal' && viewMode !== 'admin') fetchTable();
 
-    const interval = setInterval(() => {
-      // LÓGICA DE DELAY DE 30 SEGUNDOS PARA PLANILHA E TERMINAL
-      if (viewMode === 'excel' || viewMode === 'terminal') {
-        console.log("⏳ Aguardando 30s para atualizar Planilha/Terminal...");
-        setTimeout(() => {
-          fetchLiveHead();
-          if (viewMode !== 'terminal') fetchTable();
-        }, 30000); // Aguarda 30 segundos
-      } else {
-        // Atualização normal (5s) para as outras abas
+    // 2. Lógica de Sincronização Institucional (Ciclos de 5 min + 30s de delay)
+    let timeoutId;
+
+    const scheduleUpdate = () => {
+      const now = new Date();
+      const msIn5Min = 5 * 60 * 1000;
+      const delayOffset = 30 * 1000; // Delay de 30s após o fechamento da vela
+
+      // Calcula milissegundos restantes para o próximo múltiplo de 5 min
+      const msToNextCycle = msIn5Min - (now.getTime() % msIn5Min);
+      const totalWait = msToNextCycle + delayOffset;
+
+      timeoutId = setTimeout(() => {
+        console.log("🕒 Ciclo atingido (5m + 30s). Atualizando...");
         fetchLiveHead();
         if (viewMode !== 'terminal' && viewMode !== 'admin') fetchTable();
-      }
-    }, 5000); // Ciclo de verificação a cada 5 segundos
 
-    return () => clearInterval(interval);
+        // Reagenda para o próximo ciclo
+        scheduleUpdate();
+      }, totalWait);
+    };
+
+    scheduleUpdate();
+
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line
   }, [viewMode, historyPeriod]);
 
-  // Renderizadores (Mantidos originais)
+  // Renderizadores
   const renderTerminalBlock = (title, dataObj, scoreObj) => {
     if (!dataObj || Object.keys(dataObj).length === 0) return <div className="term-line">Aguardando dados...</div>;
     const sortedEntries = Object.entries(dataObj).sort(([, a], [, b]) => b - a);
